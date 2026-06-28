@@ -1,8 +1,14 @@
-# 环境配置
+# 环境配置（含 API Key，切勿提交）
 .env
 
-# 输出文件
+# API Key 输出目录
+keys/
+
+# 已生成的 Key 文件
 nvidia_api_key.txt
+
+# WorkBuddy 项目数据
+.workbuddy/
 
 # Python
 __pycache__/
