@@ -93,3 +93,6 @@ EMAIL_API=... EMAIL_AUTH=... EMAIL_DOMAIN=... NV_PASSWORD=... python3 nvidia_reg
 - 请勿将本项目用于任何商业用途或批量注册等违反 NVIDIA 服务条款的行为
 - 用户使用本项目产生的任何后果与责任，均与本仓库及维护者无关
 - 使用者应自行承担使用风险，并遵守相关平台的使用协议
+##感谢
+感谢https://linux.do的支持
+  
