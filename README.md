@@ -1,6 +1,6 @@
 # nvidia-register
 
-一键注册 NVIDIA BUILD 账号并自动创建 `AI_PLAYGROUNDS_KEY`。
+半自动注册 NVIDIA BUILD 账号并自动创建 `AI_PLAYGROUNDS_KEY`。
 
 ## 原理
 
@@ -23,7 +23,7 @@
 
 ## 邮箱服务
 
-该脚本依赖一个临时邮箱 API 服务，必须自行部署。不提供公开服务。
+该脚本依赖一个临时邮箱 API 服务，须自行部署。
 
 部署方式：实现 `POST /admin/new_address` + `GET /api/mails` + `GET /api/mail/{id}` 接口的临时邮箱服务。
 
