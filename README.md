@@ -61,13 +61,17 @@ NV_PASSWORD=YourSecurePassword123
 MAIL_TYPE=duckmail
 DUCKMAIL_API_KEY=dk_xxxxxxxxxxxx
 DUCKMAIL_DOMAIN=duckmail.sbs
+DUCKMAIL_API_BASE=https://api.duckmail.sbs
 NV_PASSWORD=YourSecurePassword123
 ```
 
 | 变量 | 说明 |
 |------|------|
 | `DUCKMAIL_API_KEY` | DuckMail API 密钥 |
-| `DUCKMAIL_DOMAIN` | 邮箱域名（默认 `duckmail.sbs`） |
+| `DUCKMAIL_DOMAIN` | 邮箱域名（默认 `duckmail.sbs`，也可填 `@duckmail.sbs`，程序会自动规范化） |
+| `DUCKMAIL_API_BASE` | DuckMail API 地址（可选；本机代理/DNS 无法访问默认地址时可指定可达地址） |
+
+如果 DuckMail 报 `UNEXPECTED_EOF_WHILE_READING`，先检查本机代理、VPN/TUN、DNS 或防火墙。若 DNS 解析到 `198.18.x.x`，通常说明请求被本地代理规则接管但没有成功转发。
 
 **API 流程：**
 
@@ -91,9 +95,9 @@ NV_PASSWORD=YourSecurePassword123
 
 ```ini
 MAIL_TYPE=imap
-DDG_TOKEN=zxvvrkyv66...
-IMAP_EMAIL=3536731089@qq.com
-IMAP_KEY=oeobhazywzjzdabe
+DDG_TOKEN=your_ddg_token
+IMAP_EMAIL=your_email@example.com
+IMAP_KEY=your_imap_auth_code
 IMAP_HOST=imap.qq.com
 IMAP_PORT=993
 IMAP_INBOX=INBOX
@@ -142,7 +146,33 @@ python3 nvidia_register.py
 
 浏览器弹出后，**手动通过 hCaptcha 验证**，其余步骤全自动。
 
-跑完后 Key 保存在脚本同目录的 `nvidia_api_key.txt`。
+跑完后 Key 默认保存在软件目录下的 `keys/` 文件夹，文件名类似 `nvidia_api_key_1_20260707_000001.txt`。也可以在 UI 的“Key 保存目录”里选择目录，或在 `.env` 中设置 `NV_KEY_FILE`；填目录会自动生成带时间戳的文件，填 `.txt` 文件则写入固定文件。
+
+## Windows exe
+
+可用 `build_exe.bat` 生成单文件版 `dist\NVIDIARegister.exe`。exe 会内置 Python 运行依赖，但不内置 Chromium 浏览器；运行时会自动查找本机 Playwright 浏览器、Chrome、Edge 或 Brave。
+
+如果更在意启动速度，可用 `build_fast.bat` 生成快速版目录 `dist\NVIDIARegister-Fast\`，双击其中的 `NVIDIARegister.exe`。快速版 EXE 本体更小，启动时不需要先解压单文件包，但需要保留同目录下的 `_internal` 依赖目录。
+
+如果自动检测不到浏览器，可在 UI 中点击“选择浏览器”，或在 `.env` 中填写：
+
+```ini
+CHROMIUM_EXECUTABLE_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+# 或:
+PLAYWRIGHT_BROWSERS_PATH=C:\Users\YourName\AppData\Local\ms-playwright
+```
+
+### 用户代理设置
+
+exe 的“配置”页包含“网络代理 (可选)”分区。需要代理时填写：
+
+```ini
+HTTP_PROXY=http://127.0.0.1:7897
+HTTPS_PROXY=http://127.0.0.1:7897
+NO_PROXY=localhost,127.0.0.1
+```
+
+保存后，后端 HTTP 请求和注册浏览器都会使用该代理。清空代理字段并保存即可关闭代理。
 
 ## 环境变量
 
@@ -153,7 +183,7 @@ python3 nvidia_register.py
 MAIL_TYPE=api EMAIL_API=... EMAIL_AUTH=... EMAIL_DOMAIN=... NV_PASSWORD=... python3 nvidia_register.py
 
 # duckmail 模式
-MAIL_TYPE=duckmail DUCKMAIL_API_KEY=... DUCKMAIL_DOMAIN=... NV_PASSWORD=... python3 nvidia_register.py
+MAIL_TYPE=duckmail DUCKMAIL_API_KEY=... DUCKMAIL_DOMAIN=duckmail.sbs NV_PASSWORD=... python3 nvidia_register.py
 
 # imap 模式
 MAIL_TYPE=imap DDG_TOKEN=... IMAP_EMAIL=... IMAP_KEY=... IMAP_HOST=... NV_PASSWORD=... python3 nvidia_register.py
