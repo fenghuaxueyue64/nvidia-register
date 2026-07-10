@@ -48,8 +48,13 @@ MAIL_TYPE=api
 EMAIL_API=https://mail.your-server.com
 EMAIL_AUTH=your_admin_key
 EMAIL_DOMAIN=your-domain.com
+EMAIL_CREATE_INTERVAL_SECONDS=1
+EMAIL_CREATE_RETRIES=4
+EMAIL_CREATE_RETRY_DELAY_SECONDS=1
 NV_PASSWORD=YourSecurePassword123
 ```
+
+并发运行时，旧 `api` 模式会用 `EMAIL_CREATE_INTERVAL_SECONDS` 在多个进程之间错开创建邮箱请求，并对空响应、非 JSON 响应和网络抖动按 `EMAIL_CREATE_RETRIES` 重试。
 
 ### 方式 2: `MAIL_TYPE=duckmail` — DuckMail API
 

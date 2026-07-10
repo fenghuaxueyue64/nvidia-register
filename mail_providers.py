@@ -13,10 +13,41 @@ import time
 import random
 import string
 import imaplib
+import ipaddress
+import socket
 from email import message_from_bytes
 from email import policy as email_policy
+from urllib.parse import urlsplit
 
 import requests
+
+
+def normalize_mail_domain(domain: str | None, default: str = "duckmail.sbs") -> str:
+    """Normalize user-entered mail domains such as '@duckmail.sbs'."""
+    value = str(domain or "").strip()
+    if not value:
+        return default
+
+    if "://" in value:
+        parsed = urlsplit(value)
+        value = parsed.netloc or parsed.path
+
+    value = value.strip().strip("/")
+    while value.startswith("@"):
+        value = value[1:].strip()
+    if "@" in value:
+        value = value.rsplit("@", 1)[-1].strip()
+    if "/" in value:
+        value = value.split("/", 1)[0].strip()
+
+    return value.lower() or default
+
+
+def normalize_api_base(api_base: str | None, default: str = "https://api.duckmail.sbs") -> str:
+    value = str(api_base or "").strip() or default
+    if "://" not in value:
+        value = "https://" + value
+    return value.rstrip("/")
 
 
 # ============================================================================
@@ -128,12 +159,15 @@ class DuckMailProvider(BaseMailProvider):
         self,
         api_key: str,
         domain: str = "duckmail.sbs",
+        api_base: str | None = None,
         timeout: int = 30,
+        retries: int = 1,
     ):
         self.api_key = api_key
-        self.domain = domain
-        self.base_url = "https://api.duckmail.sbs"
+        self.domain = normalize_mail_domain(domain)
+        self.base_url = normalize_api_base(api_base)
         self.timeout = timeout
+        self.retries = max(0, int(retries))
 
     # ------ 内部 HTTP ------
 
@@ -153,19 +187,77 @@ class DuckMailProvider(BaseMailProvider):
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
-        resp = requests.request(
-            method,
-            f"{self.base_url}{path}",
-            headers=headers,
-            json=payload,
-            params=params,
-            timeout=self.timeout,
-        )
+        url = f"{self.base_url}{path}"
+        for attempt in range(self.retries + 1):
+            try:
+                resp = requests.request(
+                    method,
+                    url,
+                    headers=headers,
+                    json=payload,
+                    params=params,
+                    timeout=self.timeout,
+                )
+                break
+            except requests.exceptions.RequestException as exc:
+                if attempt < self.retries:
+                    time.sleep(0.8 * (attempt + 1))
+                    continue
+                raise RuntimeError(self._format_network_error(url, exc)) from exc
         if resp.status_code not in (200, 201):
             raise RuntimeError(
                 f"DuckMail API error: {resp.status_code} {resp.text[:300]}"
             )
-        return resp.json()
+        try:
+            return resp.json()
+        except ValueError as exc:
+            raise RuntimeError(
+                f"DuckMail API returned non-JSON response from {url}: {resp.text[:300]}"
+            ) from exc
+
+    def _format_network_error(self, url: str, exc: Exception) -> str:
+        parsed = urlsplit(self.base_url)
+        host = parsed.hostname or "api.duckmail.sbs"
+        addresses = self._resolve_host(host)
+        hint = (
+            "Check proxy/VPN/TUN/DNS/firewall, or set DUCKMAIL_API_BASE to a "
+            "reachable DuckMail API endpoint."
+        )
+        if self._has_reserved_proxy_address(addresses):
+            hint = (
+                "DNS resolved to a reserved 198.18.0.0/15 address, which is usually "
+                "from a local proxy/TUN/DNS rule. Check that proxy/VPN route first, "
+                "or set DUCKMAIL_API_BASE to a reachable DuckMail API endpoint."
+            )
+        dns_text = f"; DNS {host} -> {', '.join(addresses)}" if addresses else ""
+        return f"DuckMail API connection failed: {url}{dns_text}; {exc}; {hint}"
+
+    @staticmethod
+    def _resolve_host(host: str) -> list[str]:
+        try:
+            infos = socket.getaddrinfo(host, 443)
+        except OSError:
+            return []
+        addresses: list[str] = []
+        for info in infos:
+            try:
+                ip = str(info[4][0])
+            except (IndexError, TypeError):
+                continue
+            if ip not in addresses:
+                addresses.append(ip)
+        return addresses
+
+    @staticmethod
+    def _has_reserved_proxy_address(addresses: list[str]) -> bool:
+        proxy_net = ipaddress.ip_network("198.18.0.0/15")
+        for address in addresses:
+            try:
+                if ipaddress.ip_address(address) in proxy_net:
+                    return True
+            except ValueError:
+                continue
+        return False
 
     @staticmethod
     def _items(data: dict) -> list:
